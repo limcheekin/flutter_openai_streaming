@@ -10,7 +10,8 @@ import 'package:flutter_client_sse/constants/sse_request_type_enum.dart';
 import 'package:flutter_client_sse/flutter_client_sse.dart';
 // REF: https://stackoverflow.com/questions/73573957/how-to-receive-server-sent-events-sse-in-flutter-web
 import 'package:flutter_openai_streaming/app/sse_stream.dart'
-    if (dart.library.html) 'package:flutter_openai_streaming/app/sse_stream_web.dart';
+    if (dart.library.js_interop) 'package:flutter_openai_streaming/app/sse_stream_web.dart';
+import 'package:flutter_openai_streaming/app/sse_transformer.dart';
 import 'package:http/http.dart' as http;
 
 class App extends StatelessWidget {
@@ -43,6 +44,7 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
 
   String responseText = '';
   bool isLoading = false;
+  StreamSubscription<dynamic>? _subscription;
 
   Future<void> streamCompletion() async {
     setState(() {
@@ -142,29 +144,32 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
       ..followRedirects = false;
 
     final stream = await getStream(request);
-    await for (final message in stream.transform(utf8.decoder)) {
+    _subscription = stream
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .transform(const SseTransformer())
+        .transform(_contentTransformer)
+        .listen(
+      (content) {
+        setState(() {
+          responseText += content;
+        });
+      },
+      onDone: () {
+        setState(() {
+          isLoading = false;
+        });
+      },
+    );
+
+    /*await for (final content in stream
+        .transform(const Utf8Decoder())
+        .transform(const LineSplitter())
+        .transform(const SseTransformer())
+        .transform(_contentTransformer)) {
       try {
-        message.split('\n').forEach((msg) {
-          if (!msg.startsWith('data: ')) {
-            return;
-          }
-
-          final jsonMsg = msg.replaceFirst(RegExp('^data: '), '');
-
-          if (jsonMsg == '[DONE]') {
-            return;
-          }
-
-          final data = json.decode(jsonMsg);
-
-          final content = data['choices'][0]['delta']['content'];
-          if (content == null) {
-            return;
-          } else {
-            setState(() {
-              responseText += content.toString();
-            });
-          }
+        setState(() {
+          responseText += content;
         });
       } catch (e) {
         debugPrint('Error: $e');
@@ -176,7 +181,7 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
           isLoading = false;
         });
       }
-    }
+    } */
   }
 
   /*
@@ -266,9 +271,19 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
             ),
             const SizedBox(height: 5),
             ElevatedButton(
-              onPressed: isLoading ? null : streamCompletionHttp,
-              child: const Text('Start Http Streaming'),
+              onPressed: () {
+                if (isLoading) {
+                  setState(() {
+                    isLoading = false;
+                  });
+                  _subscription?.cancel();
+                } else {
+                  streamCompletionHttp();
+                }
+              },
+              child: Text('${isLoading ? 'Stop' : 'Start'} Http Streaming'),
             ),
+
             const SizedBox(height: 5),
             // DOESN'T WORK! SEE ERROR AT THE FUNCTION
             ElevatedButton(
@@ -281,7 +296,7 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    isLoading ? 'Loading...' : responseText,
+                    responseText,
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
@@ -292,4 +307,24 @@ class _OpenAIStreamExampleState extends State<OpenAIStreamExample> {
       ),
     );
   }
+
+  final StreamTransformer<SseMessage, String> _contentTransformer =
+      StreamTransformer.fromHandlers(
+    handleData: (message, sink) {
+      final dataLine = message.data;
+      if (dataLine.isNotEmpty &&
+          !dataLine.startsWith(': ping') && // modal_llama-cpp-python
+          !dataLine.contains('[DONE]')) {
+        //final map = dataLine.replaceAll('data: ', '');
+        final data = Map<String, dynamic>.from(jsonDecode(dataLine) as Map);
+        final choices = List<dynamic>.from(data['choices'] as List);
+        final choice = Map<String, dynamic>.from(choices[0] as Map);
+        if (choice['finish_reason'] == null) {
+          final delta = Map<String, dynamic>.from(choice['delta'] as Map);
+          final content = delta['content'] as String;
+          sink.add(content);
+        }
+      }
+    },
+  );
 }
