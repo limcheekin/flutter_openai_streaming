@@ -13,7 +13,6 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: ^8.1.6
-  flutter_client_sse: ^2.0.2
   flutter_localizations:
     sdk: flutter
   http: ^1.2.2  
