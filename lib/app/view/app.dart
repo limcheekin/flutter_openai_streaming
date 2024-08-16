@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_openai_streaming/app/dio_stream_response_service.dart';
 import 'package:flutter_openai_streaming/app/http_stream_response_service.dart';
-import 'package:flutter_openai_streaming/app/stream_reponse_service.dart';
+import 'package:flutter_openai_streaming/app/stream_response_service.dart';
 
 class App extends StatelessWidget {
   const App({super.key});

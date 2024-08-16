@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:flutter_openai_streaming/app/http_stream_client.dart'
     if (dart.library.js_interop) 'package:flutter_openai_streaming/app/http_stream_client_web.dart';
 import 'package:flutter_openai_streaming/app/sse_transformer.dart';
-import 'package:flutter_openai_streaming/app/stream_reponse_service.dart';
+import 'package:flutter_openai_streaming/app/stream_response_service.dart';
 import 'package:http/http.dart' as http;
 
 class HttpStreamResponseService extends StreamResponseService {

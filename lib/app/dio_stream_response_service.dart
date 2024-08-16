@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_openai_streaming/app/sse_transformer.dart';
-import 'package:flutter_openai_streaming/app/stream_reponse_service.dart';
+import 'package:flutter_openai_streaming/app/stream_response_service.dart';
 
 class DioStreamResponseService extends StreamResponseService {
   final _uint8Transformer =
